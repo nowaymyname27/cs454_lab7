@@ -26,7 +26,7 @@ def loop_every(interval: float, callback: Callable[[int, float], None]):
         callback(i, elapsed_time) # Calls the callback function and passes the counter and elapsed time as args
         i += 1 # increment global counter
     signal.signal(signal.SIGALRM, handler) # Registers handler to trigger for the SIGALRM signal
-    signal.setitimer(signal.ITIMER_REAL, interval, interval) # Sets up an internal timer
+    signal.setitimer(signal.ITIMER_REAL, interval, interval) # Sets up an internal timer using interval
 
 
 def noise( t: Union[float, np.ndarray], min_freq: float = 30.0, max_freq: float = 50.0, num_waves: int = 30, seed=42):

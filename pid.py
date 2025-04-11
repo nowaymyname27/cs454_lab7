@@ -1,23 +1,26 @@
-from dataclasses import dataclass
-import pybullet as p
-import time
-import numpy as np
-import utils
-import argparse
+from dataclasses import dataclass # To create simple classes for data
+import pybullet as p # physics simulation library
+import time # standard system time functions
+import numpy as np # for python number calculations (written in C btw)
+import utils # imports utils.py file
+import argparse # parses command-line args when script is run
 
 
-@dataclass
-class Point:
-    x: float
-    y: float
+@dataclass # decorator to instantiate a class quickly (I hate decorators and objects)
+class Point: # acts as point in an X and Y axis
+    x: float # x-coordinate
+    y: float # y-coordinate
 
-@dataclass
+@dataclass # decorator to instantiate a class quickly (I hate decorators and objects)
 class World:
     """A class to hold the world objects"""
-    plate: int
-    sphere: int
+    plate: int # ID number that PyBullet assigns the plate object
+    sphere: int # ID number that PyBullet assigns the sphere object
 
 def parse_args():
+    '''
+    parses command-line arguments
+    '''
     parser = argparse.ArgumentParser()
     parser.add_argument("--setpoint", type=float, nargs=2, default=(0.0,0.0))
     parser.add_argument("--kp", type=float, default=0.0) # set these values to tune the PD controller
@@ -37,6 +40,7 @@ def run_controller(kp, kd, setpoint, noise, filtered, world: World):
         p.setJointMotorControl2(world.plate, 0, p.POSITION_CONTROL, targetPosition=np.clip(-theta_y, -0.1, 0.1), force=5, maxVelocity=2)
 
     # you can set the variables that should stay accross control loop here
+    
 
     def pd_controller(x, y, kp, kd, setpoint):
         """Implement a PD controller, you can access the setpoint via setpoint.x and setpoint.y
