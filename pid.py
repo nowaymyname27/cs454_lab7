@@ -57,8 +57,7 @@ def parse_args():
 
 def run_controller(kp, kd, setpoint, noise, filtered, world: World):
     '''
-    Responsible for the main control loop which contains
-    the logic for continously controlling the plate based
+    Responsible for the main control loop which contains the logic for continously controlling the plate based
     on the ball's position
     
     kp: float representing the Proportional Gain (how strongly the controller reacts to the ball's current position)
