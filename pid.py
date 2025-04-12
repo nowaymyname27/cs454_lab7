@@ -19,25 +19,79 @@ class World:
 
 def parse_args():
     '''
-    parses command-line arguments
+    parses command-line arguments using argparse library
     '''
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--setpoint", type=float, nargs=2, default=(0.0,0.0))
-    parser.add_argument("--kp", type=float, default=0.0) # set these values to tune the PD controller
-    parser.add_argument("--kd", type=float, default=0.0) # set these values to tune the PD controller
-    parser.add_argument("--noise", action="store_true", help="Add noise to the measurements")
-    parser.add_argument("--filtered", action="store_true", help="filter the measurements")
-    cmd_args = parser.parse_args()
-    print(cmd_args)
-    cmd_args.setpoint = Point(*cmd_args.setpoint)
-    return cmd_args
+    parser = argparse.ArgumentParser() # Creates and ArgumentParser object (Objects suck!)
+    # add_argument will be used to add different arguments accepted by the script in the Command Line
+    parser.add_argument(
+        "--setpoint", # argument
+        type=float, # expects a float
+        nargs=2, # two vals after the arg
+        default=(0.0,0.0) # if --setpoint is not provided it will default to a tuple (0.0,0.0)
+        )
+    parser.add_argument(
+        "--kp",  # argument
+        type=float, # expects a float
+        default=0.0 #defaults to 0.0 if arg not provided
+        ) # set these values to tune the PD controller
+    parser.add_argument(
+        "--kd",  # argument
+        type=float, # expects a float
+        default=0.0 # defaults to 0.0  if arg not provided
+        ) # set these values to tune the PD controller
+    parser.add_argument(
+        "--noise",  # argument
+        action="store_true", # acts like a flag, True if arg is present False otherwise
+        help="Add noise to the measurements" # description for is the user asks for help
+        )
+    parser.add_argument(
+        "--filtered",  # argument
+        action="store_true", # acts like a flag, True if arg is present False otherwise
+        help="filter the measurements" # description for is the user asks for help
+        )
+    cmd_args = parser.parse_args() # parses through the command arguments and stores them as an object
+    print(cmd_args) # shows the command arguments selected
+    cmd_args.setpoint = Point(*cmd_args.setpoint) # Converts the setpoint argument into a point object
+    return cmd_args # returns cmd_args object which contains all the parsed and processed config settings
 
 
 def run_controller(kp, kd, setpoint, noise, filtered, world: World):
-
+    '''
+    Responsible for the main control loop which contains
+    the logic for continously controlling the plate based
+    on the ball's position
+    
+    kp: float representing the Proportional Gain (how strongly the controller reacts to the ball's current position)
+    kd: flaot representing the Derivative Gain (how strongly the controller reacts to the ball's rate of change)
+    setpoint: Point object representing the ball's position
+    noise: boolean determined by the --noise command line argument, if True the controller adds artificial noise
+    filtered: boolean determined by the --filtered command line arg, if True the controller applies filter to the ball's position.
+    world: World object, contains IDs of plate and sphere assigned by PyBullet
+    '''
     def set_plate_angles(theta_x, theta_y):
-        p.setJointMotorControl2(world.plate, 1, p.POSITION_CONTROL, targetPosition=np.clip(theta_x, -0.1, 0.1), force=5, maxVelocity=2)
-        p.setJointMotorControl2(world.plate, 0, p.POSITION_CONTROL, targetPosition=np.clip(-theta_y, -0.1, 0.1), force=5, maxVelocity=2)
+        '''
+        Takes the desired tilt angle of the plate and translates them into commands
+        for PyBullet simulation's motor.
+        
+        theta_x: float, calculated desired tilt angle of the plate around its local Y-axis
+        theta_y: float, calculated desired tilt angle of the plate around its local X-axis
+        '''
+        p.setJointMotorControl2( # Function used to control a joint in a multi-body object (the plate)
+            world.plate, # ID of the object we want to control
+            1, # which joint we are controlling (X-axis via tilt around Y-axis)
+            p.POSITION_CONTROL, # Tells PyBullet how to control the joint, POSITION_CONTROL is for a target angle
+            targetPosition=np.clip(theta_x, -0.1, 0.1), # Sets desired angle between a range(-0.1,0.1)
+            force=5, # Maximum force that the simulation motor is allowed to use
+            maxVelocity=2 # Max velocity for the joint motor when moving towards a desired angle
+            )
+        p.setJointMotorControl2( # Function used to control a joint in a multi-body object (the plate)
+            world.plate, # ID of the object we want to control (same plate)
+            0, # Which joint we are controlling (Y-axis movement via tilt around X-axis)
+            p.POSITION_CONTROL, # Tells PyBullet how to control the joint, POSITION_CONTROL is for a target angle
+            targetPosition=np.clip(-theta_y, -0.1, 0.1), # Sets desired angle, using range [-0.1, 0.1] radians
+            force=5, # Maximum force that the simulation motor is allowed to use (same as other joint)
+            maxVelocity=2 # Max velocity for the joint motor when moving towards a desired angle (same as other joint)
+            )
 
     # you can set the variables that should stay accross control loop here
     
