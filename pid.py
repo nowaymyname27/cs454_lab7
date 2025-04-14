@@ -93,14 +93,60 @@ def run_controller(kp, kd, setpoint, noise, filtered, world: World):
             )
 
     # you can set the variables that should stay accross control loop here
-    
+    last_error_x = 0.0
+    last_error_y = 0.0
+    dt = 0.01
 
-    def pd_controller(x, y, kp, kd, setpoint):
-        """Implement a PD controller, you can access the setpoint via setpoint.x and setpoint.y
-        the plate is small around 0.1 to 0.2 meters. You will have to calculate the error and change in error and 
-        use those to calculate the angle to apply to the plate."""
-        return 0.0, 0.0
+    def pd_controller(current_x, current_y, kp, kd, target_setpoint):
+        '''
+        Calculates the  desired plate tilt angles using PD controller.
+        
+        current_x: current ball position (X-axis)
+        current_y: current ball position (Y-axis)
+        kp: proportional gain
+        kd: derivative gain
+        target_setpoint: Point object (target_setpoint.x, target_setpoint.y)
+        
+        returns: tuple (x,y) desired tilt angles in radians
+        '''
+        # Allow modification of variables from the enclosing 'run_controller' scope
+        nonlocal last_error_x, last_error_y
 
+        # --- Proportional Term ---
+        # Calculate the current error (difference between target and current position)
+        error_x = target_setpoint.x - current_x
+        error_y = target_setpoint.y - current_y
+
+        # Calculate the proportional output (how much to correct based on current error)
+        proportional_term_x = kp * error_x
+        proportional_term_y = kp * error_y
+
+        # --- Derivative Term ---
+        # Calculate the change in error since the last time step
+        change_in_error_x = error_x - last_error_x
+        change_in_error_y = error_y - last_error_y
+
+        # Approximate the derivative of the error (rate of change)
+        # Divide the change in error by the time step (dt)
+        error_derivative_x = change_in_error_x / dt
+        error_derivative_y = change_in_error_y / dt
+
+        # Calculate the derivative output (how much to correct based on rate of change)
+        derivative_term_x = kd * error_derivative_x
+        derivative_term_y = kd * error_derivative_y
+
+        # --- Update State for Next Iteration ---
+        # Store the current error to be used as 'last_error' in the next call
+        last_error_x = error_x
+        last_error_y = error_y
+
+        # --- Combine Terms ---
+        # Calculate the final control output (angle) by summing P and D terms
+        output_angle_x = proportional_term_x + derivative_term_x
+        output_angle_y = proportional_term_y + derivative_term_y
+
+        # Return the calculated angles
+        return output_angle_x, output_angle_y
 
     def filter_val(val):
         """Implement a filter here, you can use scipy.signal.butter to compute the filter coefficients and then scipy.signal.lfilter to apply the filter.but we recommend you implement it yourself instead of using lfilter because you'll have to do that on the real system later.

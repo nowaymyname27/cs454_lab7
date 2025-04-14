@@ -8,24 +8,27 @@
 ###                                               ###
 #####################################################
 
-from scipy.fftpack import fft, fftshift, fftfreq
-from scipy import signal
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from matplotlib.colors import to_rgba
-import random
-import utils
+from scipy.fftpack import fft, fftshift, fftfreq # used for Fast Fourier Transform stfu
+from scipy import signal # used for signal processing
+import numpy as np # numerical operations as usual
+import matplotlib.pyplot as plt # standard library for plotting graphs
+import matplotlib.patches as patches # used to draw shaded regions on the FFT plot to highlight freq bands
+from matplotlib.colors import to_rgba # used to spcify colors for the shaded regions
+import random # standard random module
+import utils # import utils.py, mostly for the utils.noise() function
 
 ## Where to save generated figures
-savepath="/home/renato/BU/Classes/CS454_Sp23/Python/";
+# savepath="/home/renato/BU/Classes/CS454_Sp23/Python/";
 
-## Generic function to compute the FFT.
-## @s: sampled signal for which to compute the FFT
-## @fc: frequency of sampling in Hz
-## returns: xf and yf ready for plotting
+
 
 def getFFT(s, fc):
+    '''
+    Generic helper function to compute the FFT.
+    
+    @s: sampled signal for which to compute the FFT
+    @fc: frequency of sampling in Hz
+    returns: xf and yf ready for plotting'''
     # SAmpling period
     Tc = 1/fc
     # Number of samples
@@ -100,12 +103,12 @@ def plotFFT(xf, yf, signal_band=None, noise_band=None):
 
 ### PART 1: Simple signal at 500 Hz and random noise between 10 and 123 Hz ###
 # Generate time axis for a 500 Hz sampled signal between -2 and 2 seconds
-fc = 500.0
-Tc = 1/fc
-time_start = -2.0
-time_end = 2.0
-N = (time_end - time_start) / Tc
-t = np.linspace(time_start, time_end, num=int(N), endpoint=False)
+fc = 500.0 # sampling frequency
+Tc = 1/fc # sampling period
+time_start = -2.0 # Start time for the signal
+time_end = 2.0 # end time for the signal
+N = (time_end - time_start) / Tc # Total number of samples needed
+t = np.linspace(time_start, time_end, num=int(N), endpoint=False) # Create the time vector
 
 # Generate sampled signal: a sinusoid with main component at 5 Hz
 s_hz = 5
