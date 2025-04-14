@@ -112,50 +112,65 @@ def run_controller(kp, kd, setpoint, noise, filtered, world: World):
         1. Get the measurement of the position of the ball
         2. Calculate the forces to be applied to the plate
         3. Apply the forces to the plate
+        
+        i: iteration count
+        t: elapsed time form loop_every()
         '''
-        (x,y,z), orientation = p.getBasePositionAndOrientation(world.sphere)
-        if noise:
+        # Queries PyBullet for the position of the object with the ID in world.sphere
+        (x,y,z), orientation = p.getBasePositionAndOrientation(world.sphere) # returns x,y,z and orientation, we care about x and y, the rest is captured but not used
+
+        if noise: # Checks if the noise flag is True
             x += utils.noise(t) # the noise added has a frequency between 30 and 50 Hz
             y += utils.noise(t, seed = 43) # so that the noise on y is different than the one on x
         
-        if filtered:
-            x = filter_val(x)
-            y = filter_val(y)
+        if filtered: # Checks is the filtered flag is True
+            x = filter_val(x) # filters the noise from the x coordinate
+            y = filter_val(y) # filters the noise from the y coordinate
 
-        (angle_x, angle_y) = pd_controller(x, y, kp, kd, setpoint)
-        set_plate_angles(angle_x, angle_y)
+        (angle_x, angle_y) = pd_controller(x, y, kp, kd, setpoint) 
+        set_plate_angles(angle_x, angle_y) # Sets angle of x and y based on pd_controller
 
         if i%10 == 0: # print every 100 ms
-            print(f"t: {t:.2f}, x: {x:.3f},\ty: {y:.3f},\tax: {angle_x:.3f},\tay: {angle_y:.3f}")
+            print(f"t: {t:.2f}, x: {x:.3f},\ty: {y:.3f},\tax: {angle_x:.3f},\tay: {angle_y:.3f}") # ball position (x,y) plate angle (ax,ay)
 
     utils.loop_every(0.01, every_10ms) # we run our controller at 100 Hz using a linux alarm signal
 
 def run_simulation( initial_ball_position = Point(np.random.uniform(-0.2, 0.2),
                                                   np.random.uniform(-0.2, 0.2))):
-    p.connect(p.GUI)
-    p.setAdditionalSearchPath("assets")
-    plate = p.loadURDF("plate.urdf")
-    sphere = p.createMultiBody(0.2
-        , p.createCollisionShape(p.GEOM_SPHERE, radius=0.04)
-        , basePosition = [initial_ball_position.x,initial_ball_position.y,0.5]
+    '''
+    Sets up the PyBullet environment
+    
+    initial_ball_position: (optional) provides the initial position of the ball, by default the ball starts at random between -0.2 and 0,2
+    '''
+    p.connect(p.GUI) # Function to open the window to see the simulation
+    p.setAdditionalSearchPath("assets") # This tells PyBullet to look for asset files (ex: plate.urdf)
+    plate = p.loadURDF("plate.urdf") # Loads the plate.urdf model into the sim
+    
+    sphere = p.createMultiBody( # Creates the sphere object directly without a URDF file, stores an ID
+        0.2 # mass of the sphere
+        , p.createCollisionShape(p.GEOM_SPHERE, radius=0.04) # defines collision as a sphere with radius 0.04
+        , basePosition = [initial_ball_position.x,initial_ball_position.y,0.5] # Sets the initial position of the ball based on initial_ball_position()
     )
 
     #zoom to the plate
-    p.resetDebugVisualizerCamera(cameraDistance=1.0, cameraYaw=0, cameraPitch=-45, cameraTargetPosition=[0,0,0])
+    p.resetDebugVisualizerCamera(cameraDistance=1.0, cameraYaw=0, cameraPitch=-45, cameraTargetPosition=[0,0,0]) # sets the view of the camera in the GUI window
 
-    p.setJointMotorControl2(plate, 0, p.POSITION_CONTROL, targetPosition=0, force=5, maxVelocity=2)
-    p.setJointMotorControl2(plate, 1, p.POSITION_CONTROL, targetPosition=0, force=5, maxVelocity=2)
+    p.setJointMotorControl2(plate, 0, p.POSITION_CONTROL, targetPosition=0, force=5, maxVelocity=2) # initialize joint motor x axis
+    p.setJointMotorControl2(plate, 1, p.POSITION_CONTROL, targetPosition=0, force=5, maxVelocity=2) # initialize joint motor y axis
 
-    p.setGravity(0, 0, -9.8)
+    p.setGravity(0, 0, -9.8) # sets the gravitational acceleration (-9.8 m/s^2)
 
     #update the simulation at 100 Hz
-    p.setTimeStep(0.01)
-    p.setRealTimeSimulation(1)
-    return World(plate=plate, sphere=sphere)
+    p.setTimeStep(0.01) # physics engine updates on 10 millisecond increments
+    p.setRealTimeSimulation(1) # tries to synchronize the sim to clock
+    return World(plate=plate, sphere=sphere) # returns the world object containing ID for plate and sphere
 
 
-if __name__ == "__main__":
-    cmd_args = parse_args()
-    world = run_simulation()
-    run_controller(**vars(cmd_args), world=world)
-    time.sleep(10000)
+if __name__ == "__main__": # will only execute when you run pid.py, will not run of imported to another file
+    cmd_args = parse_args() # Reads the command line args
+    world = run_simulation() # sets up the PyBullet environment and stores the world object
+    run_controller( # starts the actual control loop
+        **vars(cmd_args), # converts the parsed command line args object with attribute into a dictionary, the ** unpacks it as args for this function
+        world=world #  passes the world object containing the simulation IDs
+        ) 
+    time.sleep(10000) # script pauses to allow the control loop to run indefinitely
