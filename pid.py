@@ -1,3 +1,25 @@
+"""
+Simulates a ball balancing on a plate controlled by a PD controller using PyBullet.
+
+Usage:
+    python pid.py [options]
+
+Key Options:
+    --kp <value>      Set the Proportional gain (e.g., --kp 0.5). Requires tuning.
+    --kd <value>      Set the Derivative gain (e.g., --kd 0.05). Requires tuning.
+    --setpoint <x> <y> Set the target position for the ball (e.g., --setpoint 0.1 0.0). Defaults to 0.0 0.0.
+    --noise           Add simulated noise to ball position measurements.
+    --filtered        Apply a filter to noisy measurements (requires --noise).
+
+Example:
+    python pid.py --kp 0.6 --kd 0.08 --noise --filtered
+
+Note:
+    Requires PyBullet, NumPy, SciPy.
+    Ensure 'utils.py' is in the same directory and 'plate.urdf' is in an 'assets' subdirectory.
+    Tune kp and kd values iteratively to achieve stable balancing.
+"""
+
 from dataclasses import dataclass # To create simple classes for data
 import pybullet as p # physics simulation library
 import time # standard system time functions
