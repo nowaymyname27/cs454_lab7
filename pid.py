@@ -4,6 +4,8 @@ import time # standard system time functions
 import numpy as np # for python number calculations (written in C btw)
 import utils # imports utils.py file
 import argparse # parses command-line args when script is run
+from collections import deque
+from scipy import signal
 
 
 @dataclass # decorator to instantiate a class quickly (I hate decorators and objects)
@@ -96,6 +98,31 @@ def run_controller(kp, kd, setpoint, noise, filtered, world: World):
     last_error_x = 0.0
     last_error_y = 0.0
     dt = 0.01
+    
+    # Filter Parameters
+    filter_order = 2
+    cutoff_freq_hz = 20.0 # Hz
+    sampling_freq_hz = 100.0 # Hz (must match loop rate dt=0.01)
+
+    # Calculate normalized cutoff frequency (fraction of Nyquist frequency)
+    nyquist_freq_hz = sampling_freq_hz / 2.0
+    normalized_cutoff = cutoff_freq_hz / nyquist_freq_hz
+
+    # Calculate filter coefficients using scipy.signal.butter
+    # b: numerator coefficients (feedforward)
+    # a: denominator coefficients (feedback)
+    # Note: a[0] will be 1 for Butterworth filters from scipy
+    b_coeffs, a_coeffs = signal.butter(filter_order, normalized_cutoff, btype='lowpass', analog=False)
+
+    # State storage for the filters using deques
+    # We need N previous inputs and N previous outputs for an Nth order filter
+    # Input buffer stores: x[n], x[n-1], ..., x[n-N] (N+1 elements)
+    # Output buffer stores: y[n-1], y[n-2], ..., y[n-N] (N elements needed for calculation)
+    # Initialize with zeros
+    input_buffer_x = deque([0.0] * (filter_order + 1), maxlen=(filter_order + 1))
+    output_buffer_x = deque([0.0] * filter_order, maxlen=filter_order) # Store N previous outputs
+    input_buffer_y = deque([0.0] * (filter_order + 1), maxlen=(filter_order + 1))
+    output_buffer_y = deque([0.0] * filter_order, maxlen=filter_order) # Store N previous outputs
 
     def pd_controller(current_x, current_y, kp, kd, target_setpoint):
         '''
@@ -148,10 +175,34 @@ def run_controller(kp, kd, setpoint, noise, filtered, world: World):
         # Return the calculated angles
         return output_angle_x, output_angle_y
 
-    def filter_val(val):
+    def filter_val(new_input, input_buffer: deque, output_buffer: deque):
         """Implement a filter here, you can use scipy.signal.butter to compute the filter coefficients and then scipy.signal.lfilter to apply the filter.but we recommend you implement it yourself instead of using lfilter because you'll have to do that on the real system later.
         Take a look at the butterworth example written by Renato for inspiration."""
-        pass
+        # Allow modification of coefficients defined in run_controller scope
+        # (Technically not needed if only reading, but good practice if you might adapt coeffs later)
+        nonlocal b_coeffs, a_coeffs
+
+        # 1. Add the new input to the input buffer
+        # input_buffer now holds [x[n], x[n-1], ..., x[n-N]]
+        input_buffer.appendleft(new_input)
+
+        # 2. Calculate the feedforward term (sum(b[i]*x[n-i]))
+        # Ensure buffer has enough elements (it should due to initialization)
+        feedforward_sum = sum(b_coeffs[i] * input_buffer[i] for i in range(filter_order + 1))
+
+        # 3. Calculate the feedback term (sum(a[j]*y[n-j]))
+        # output_buffer holds [y[n-1], y[n-2], ..., y[n-N]]
+        # We need a[1]*y[n-1] + a[2]*y[n-2] + ... + a[N]*y[n-N]
+        feedback_sum = sum(a_coeffs[j] * output_buffer[j-1] for j in range(1, filter_order + 1))
+
+        # 4. Calculate the new output y[n] (assuming a[0]=1)
+        new_output = feedforward_sum - feedback_sum
+
+        # 5. Add the new output to the output buffer for the next iteration
+        # output_buffer will now hold [y[n], y[n-1], ..., y[n-N+1]]
+        output_buffer.appendleft(new_output)
+
+        return new_output
 
     def every_10ms(i: int, t: float):
         '''This function is called every ms and performs the following:
@@ -170,8 +221,8 @@ def run_controller(kp, kd, setpoint, noise, filtered, world: World):
             y += utils.noise(t, seed = 43) # so that the noise on y is different than the one on x
         
         if filtered: # Checks is the filtered flag is True
-            x = filter_val(x) # filters the noise from the x coordinate
-            y = filter_val(y) # filters the noise from the y coordinate
+            x = filter_val(x, input_buffer_x, input_buffer_y) # filters the noise from the x coordinate
+            y = filter_val(y, input_buffer_y, output_buffer_y) # filters the noise from the y coordinate
 
         (angle_x, angle_y) = pd_controller(x, y, kp, kd, setpoint) 
         set_plate_angles(angle_x, angle_y) # Sets angle of x and y based on pd_controller
