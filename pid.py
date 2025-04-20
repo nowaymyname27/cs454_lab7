@@ -243,7 +243,7 @@ def run_controller(kp, kd, setpoint, noise, filtered, world: World):
             y += utils.noise(t, seed = 43) # so that the noise on y is different than the one on x
         
         if filtered: # Checks is the filtered flag is True
-            x = filter_val(x, input_buffer_x, input_buffer_y) # filters the noise from the x coordinate
+            x = filter_val(x, input_buffer_x, output_buffer_x) # filters the noise from the x coordinate
             y = filter_val(y, input_buffer_y, output_buffer_y) # filters the noise from the y coordinate
 
         (angle_x, angle_y) = pd_controller(x, y, kp, kd, setpoint) 
